@@ -11,7 +11,7 @@
 #define MAX_LINE_LENGTH 1024
 
 static void handle_client(int fd);
-struct emailStates
+struct emailState
 {
     char *sender;
     user_list_t recipients;
@@ -35,7 +35,6 @@ void helo(int fd, char *givenName)
 {
     printf("HELO\r\n");
 
-    
     char arg0[MAX_LINE_LENGTH] = "250 ";
     // char *arg1 = name.nodename;
     char *arg2 = " Hello ";
@@ -45,7 +44,7 @@ void helo(int fd, char *givenName)
     strcat(arg0, givenName);
     strcat(arg0, arg3);
     strcat(arg0, arg4);
-    
+
     send_all(fd, arg0, strlen(arg0));
 }
 
@@ -65,20 +64,39 @@ void mail(int fd, char *arg)
 {
     if (state.sender != NULL)
     {
-        send_formatted(fd, "503 5.5.0 Sender already specified");
+        send_formatted(fd, "503 5.5.0 Sender already specified\n");
         return;
     }
-    printf("%s\n", arg);
-    char *sender = NULL;
     char *start = strchr(arg, '<') + 1;
     char *end = strchr(arg, '>');
+    char sender[end - start + 1];
     strncpy(sender, start, end - start);
-    printf("%s\n", sender);
+    sender[end - start] = '\0';
+    state.sender = sender;
+    send_formatted(fd, "250 2.1.0 <%s>... Sender ok\n", sender);
 }
 
-void rcpt()
+void rcpt(int fd, char *arg)
 {
-    printf("RCPT\n");
+    if (!state.sender)
+    {
+        send_formatted(fd, "503 5.0.0 Need MAIL before RCPT\n");
+        return;
+    }
+    char *start = strchr(arg, '<') + 1;
+    char *end = strchr(arg, '>');
+    char recipient[end - start + 1];
+    strncpy(recipient, start, end - start);
+    recipient[end - start] = '\0';
+    // validate recipient
+    if (!is_valid_user(recipient, NULL))
+    {
+        send_formatted(fd, "550 5.1.1 <%s>... User unknown\n", recipient);
+        return;
+    }
+    // add recipient to state
+    add_user_to_list(&state.recipients, recipient);
+    send_formatted(fd, "250 2.1.5 <%s>... Recipient ok\n", recipient);
 }
 
 void data()
@@ -101,7 +119,8 @@ void noop()
     printf("NOOP\n");
 }
 
-void quit(int fd){
+void quit(int fd)
+{
     printf("QUIT\n");
     char arg0[MAX_LINE_LENGTH] = "221 2.0.0 ";
     // char *arg1 = name.nodename;
@@ -127,19 +146,20 @@ void handle_client(int fd)
     printf("init message: %s\n", command);
     while (strcasecmp(command, "QUIT") != 0)
     {
-        if (strcasecmp(command, "HELO") == 0){
-            if(parts[1] == NULL)
+        if (strcasecmp(command, "HELO") == 0)
+        {
+            if (parts[1] == NULL)
                 heloErr(fd);
             else
                 helo(fd, parts[1]);
         }
-            
+
         else if (strcasecmp(command, "EHLO") == 0)
             ehlo();
         else if (strcasecmp(command, "MAIL") == 0)
             mail(fd, parts[1]);
         else if (strcasecmp(command, "RCPT") == 0)
-            rcpt();
+            rcpt(fd, parts[1]);
         else if (strcasecmp(command, "DATA") == 0)
             data();
         else if (strcasecmp(command, "RSET") == 0)
