@@ -61,10 +61,12 @@ void vrfy()
     printf("VRFY\n");
 }
 
-void noop()
+void noop(int fd)
 {
-    printf("NOOP\n");
+    char msg[] = "250 OK\r\n";
+    send_all(fd, msg, strlen(msg));
 }
+
 void handle_client(int fd)
 {
 
@@ -97,7 +99,7 @@ void handle_client(int fd)
         else if (strcasecmp(command, "VRFY") == 0)
             vrfy();
         else if (strcasecmp(command, "NOOP") == 0)
-            noop();
+            noop(fd);
         nb_read_line(nb, recvbuf);
         split(recvbuf, parts);
         command = parts[0];
