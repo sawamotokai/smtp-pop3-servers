@@ -28,27 +28,16 @@ int main(int argc, char *argv[])
 
 void helo(int fd, char *givenName)
 {
-    printf("HELO\r\n");
-
-    
-    char arg0[MAX_LINE_LENGTH] = "250 ";
-    // char *arg1 = name.nodename;
-    char *arg2 = " Hello ";
-    char *arg3 = " [invalid.ip.for.now] ";
-    char *arg4 = ", pleased to meet you\r\n";
-    strcat(arg0, arg2);
-    strcat(arg0, givenName);
-    strcat(arg0, arg3);
-    strcat(arg0, arg4);
-    
-    send_all(fd, arg0, strlen(arg0));
+    printf("HELO\r\n");    
+    char* tempServer = "smtp.cs.ubc.ca";
+    char* tempDomain = "pender.students.cs.ubc.ca";
+    send_formatted(fd, "250 %s Hello %s [198.162.33.17], pleased to meet you\r\n", tempServer, tempDomain);
 }
 
 void heloErr(int fd)
 {
     printf("HELO ERR\n");
-    char *output = "501 5.0.0 HELO requires domain address\r\n";
-    send_all(fd, output, strlen(output));
+    send_formatted(fd, "501 5.0.0 HELO requires domain address\r\n", NULL);
 }
 
 void ehlo()
@@ -81,18 +70,16 @@ void vrfy()
     printf("VRFY\n");
 }
 
-void noop()
+void noop(int fd)
 {
     printf("NOOP\n");
+    send_formatted(fd, "250 2.0.0 OK\r\n", NULL);
 }
 
 void quit(int fd){
     printf("QUIT\n");
-    char arg0[MAX_LINE_LENGTH] = "221 2.0.0 ";
-    // char *arg1 = name.nodename;
-    char *arg1 = " closing connection\r\n";
-    strcat(arg0, arg1);
-    send_all(fd, arg0, strlen(arg0));
+    char* tempDomain = "smtp.cs.ubc.ca";
+    send_formatted(fd, "221 2.0.0 %s closing connection\r\n", tempDomain);
 }
 
 void handle_client(int fd)
@@ -132,7 +119,7 @@ void handle_client(int fd)
         else if (strcasecmp(command, "VRFY") == 0)
             vrfy();
         else if (strcasecmp(command, "NOOP") == 0)
-            noop();
+            noop(fd);
         nb_read_line(nb, recvbuf);
         split(recvbuf, parts);
         command = parts[0];
