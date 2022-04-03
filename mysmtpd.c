@@ -11,6 +11,11 @@
 #define MAX_LINE_LENGTH 1024
 
 static void handle_client(int fd);
+struct emailStates
+{
+    char *sender;
+    user_list_t recipients;
+} state = {NULL, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -36,9 +41,19 @@ void ehlo()
     printf("EHLO\n");
 }
 
-void mail()
+void mail(int fd, char *arg)
 {
-    printf("MAIL\n");
+    if (state.sender != NULL)
+    {
+        send_formatted(fd, "503 5.5.0 Sender already specified");
+        return;
+    }
+    printf("%s\n", arg);
+    char *sender = NULL;
+    char *start = strchr(arg, '<') + 1;
+    char *end = strchr(arg, '>');
+    strncpy(sender, start, end - start);
+    printf("%s\n", sender);
 }
 
 void rcpt()
@@ -89,7 +104,7 @@ void handle_client(int fd)
         else if (strcasecmp(command, "EHLO") == 0)
             ehlo();
         else if (strcasecmp(command, "MAIL") == 0)
-            mail();
+            mail(fd, parts[1]);
         else if (strcasecmp(command, "RCPT") == 0)
             rcpt();
         else if (strcasecmp(command, "DATA") == 0)
