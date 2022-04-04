@@ -281,6 +281,9 @@ void handle_client(int fd)
         }
         else
             errCmd(fd);
+
+        // TODO: handle other commands that are supported but not to be implented
+
     }
     nb_destroy(nb);
 }
