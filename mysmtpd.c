@@ -51,7 +51,6 @@ void ehlo(int fd, char *domainName, char *givenName)
     helo(fd, domainName, givenName);
     if (state.sender)
     {
-        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
@@ -140,7 +139,13 @@ void data(int fd, net_buffer_t nb)
             send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
             break;
         }
-        write(file, line, n);
+        char *ptr = line;
+        if (line[0] == '.')
+        {
+            ptr++;
+            n--;
+        }
+        write(file, ptr, n);
     }
     close(file);
     save_user_mail(filename, state.recipients);
@@ -151,7 +156,6 @@ void rset(int fd)
 {
     if (state.sender)
     {
-        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
