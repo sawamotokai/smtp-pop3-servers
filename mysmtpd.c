@@ -60,6 +60,11 @@ void mail(int fd, char *arg)
     }
     char *start = strchr(arg, '<') + 1;
     char *end = strchr(arg, '>');
+    if (!(start && end))
+    {
+        send_formatted(fd, "501 5.1.0 Syntax error in parameters\r\n");
+        return;
+    }
     char sender[end - start + 1];
     strncpy(sender, start, end - start);
     sender[end - start] = '\0';
@@ -76,6 +81,11 @@ void rcpt(int fd, char *arg)
     }
     char *start = strchr(arg, '<') + 1;
     char *end = strchr(arg, '>');
+    if (!(start && end))
+    {
+        send_formatted(fd, "501 5.1.0 Syntax error in parameters\r\n");
+        return;
+    }
     char recipient[end - start + 1];
     strncpy(recipient, start, end - start);
     recipient[end - start] = '\0';
