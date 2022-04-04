@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
 void helo(int fd, char *domainName, char *givenName)
 {
-    printf("HELO\n");    
+    printf("HELO\n");
     send_formatted(fd, "250 %s Hello %s , pleased to meet you\r\n", domainName, givenName);
 }
 
@@ -49,7 +49,17 @@ void ehlo(int fd, char *domainName, char *givenName)
 {
     printf("EHLO\n");
     helo(fd, domainName, givenName);
-    state = {1, NULL, NULL};
+    if (state.sender)
+    {
+        free(state.sender);
+        state.sender = NULL;
+    }
+    if (state.recipients)
+    {
+        destroy_user_list(state.recipients);
+        state.recipients = NULL;
+    }
+    state.usedEHLO = 1;
 }
 
 void mail(int fd, char *arg)
@@ -148,7 +158,7 @@ void rset(int fd)
     }
     if (state.recipients)
     {
-        free_user_list(state.recipients);
+        destroy_user_list(state.recipients);
         state.recipients = NULL;
     }
     send_formatted(fd, "250 2.0.0 Reset state\r\n");
@@ -157,7 +167,8 @@ void rset(int fd)
 void vrfy(int fd, char *args[])
 {
     printf("VRFY\n");
-    if(args[1] == NULL){
+    if (args[1] == NULL)
+    {
         send_formatted(fd, "550 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
         return;
     }
@@ -166,14 +177,14 @@ void vrfy(int fd, char *args[])
         send_formatted(fd, "501 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
         return;
     }
-    
-    
 
     int isValid = is_valid_user(args[1], args[2]);
     if (isValid == 0)
     {
         send_formatted(fd, "550 Requested action not taken: mailbox unavailable. %s does not exist, or password is incorrect\r\n", args[1]);
-    }else{
+    }
+    else
+    {
         send_formatted(fd, "250 Requested mail action okay, completed\r\n", NULL);
     }
 }
