@@ -108,7 +108,7 @@ void rcpt(int fd, char *arg)
     // validate recipient
     if (!is_valid_user(recipient, NULL))
     {
-        send_formatted(fd, "550 5.1.1 <%s>... User unknown\r\n", recipient);
+        send_formatted(fd, "501 5.1.1 <%s>... User unknown\r\n", recipient);
         return;
     }
     // add recipient to state
@@ -133,11 +133,9 @@ void data(int fd, net_buffer_t nb)
         printf("%s", line);
         if (n <= 0)
         {
-            // send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
-            // break;
             break;
         }
-        if (strcmp(line, ".\n") == 0)
+        if (strcmp(line, ".\r\n") == 0)
         {
             send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
             break;
