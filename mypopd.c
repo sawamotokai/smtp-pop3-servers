@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void user(int fd, char *parts, int argCount) {
+void user(int fd, char *parts[], int argCount) {
     printf("USER\n");
     if (argCount != 2) {
         send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
@@ -87,7 +87,7 @@ void rset(int fd) {
 void quit(int fd) {
     printf("QUIT\n");
     send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
-}
+} 
 
 void initRes(int fd) {
     printf("INIT RES\n");
