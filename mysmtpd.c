@@ -42,7 +42,7 @@ void helo(int fd, char *domainName, char *givenName)
 void heloErr(int fd)
 {
     printf("HELO ERR\n");
-    send_formatted(fd, "501 5.0.0 HELO requires domain address\r\n", NULL);
+    send_formatted(fd, "501 5.0.0 HELO requires domain address\r\n");
 }
 
 void ehlo(int fd, char *domainName, char *givenName)
@@ -169,12 +169,12 @@ void vrfy(int fd, char *args[])
     printf("VRFY\n");
     if (args[1] == NULL)
     {
-        send_formatted(fd, "550 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
+        send_formatted(fd, "501 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n");
         return;
     }
     if (args[2] != NULL)
     {
-        send_formatted(fd, "501 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
+        send_formatted(fd, "501 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n");
         return;
     }
 
@@ -185,7 +185,7 @@ void vrfy(int fd, char *args[])
     }
     else
     {
-        send_formatted(fd, "250 Requested mail action okay, completed\r\n", NULL);
+        send_formatted(fd, "250 Requested mail action okay, completed\r\n");
     }
 }
 
@@ -211,7 +211,7 @@ void initRes(int fd)
 void errCmd(int fd)
 {
     printf("INVALID\n");
-    send_formatted(fd, "503 bad sequence of commands\r\n", NULL);
+    send_formatted(fd, "503 bad sequence of commands\r\n");
 }
 
 void handle_client(int fd)
