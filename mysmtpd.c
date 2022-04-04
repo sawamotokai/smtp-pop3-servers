@@ -34,30 +34,21 @@ int main(int argc, char *argv[])
 void helo(int fd, char *givenName)
 {
     printf("HELO\r\n");
-
-    char arg0[MAX_LINE_LENGTH] = "250 ";
-    // char *arg1 = name.nodename;
-    char *arg2 = " Hello ";
-    char *arg3 = " [invalid.ip.for.now] ";
-    char *arg4 = ", pleased to meet you\r\n";
-    strcat(arg0, arg2);
-    strcat(arg0, givenName);
-    strcat(arg0, arg3);
-    strcat(arg0, arg4);
-
-    send_all(fd, arg0, strlen(arg0));
+    char *tempServer = "smtp.cs.ubc.ca";
+    char *tempDomain = "pender.students.cs.ubc.ca";
+    send_formatted(fd, "250 %s Hello %s [198.162.33.17], pleased to meet you\r\n", tempServer, tempDomain);
 }
 
 void heloErr(int fd)
 {
     printf("HELO ERR\n");
-    char *output = "501 5.0.0 HELO requires domain address\r\n";
-    send_all(fd, output, strlen(output));
+    send_formatted(fd, "501 5.0.0 HELO requires domain address\r\n", NULL);
 }
 
-void ehlo()
+void ehlo(int fd)
 {
     printf("EHLO\n");
+    send_formatted(fd, "250 2.0.0 OK\r\n", NULL);
 }
 
 void mail(int fd, char *arg)
@@ -99,34 +90,44 @@ void rcpt(int fd, char *arg)
     send_formatted(fd, "250 2.1.5 <%s>... Recipient ok\n", recipient);
 }
 
-void data()
+void data(int fd)
 {
     printf("DATA\n");
 }
 
-void rset()
+void rset(int fd)
 {
     printf("RSET\n");
 }
 
-void vrfy()
+void vrfy(int fd)
 {
     printf("VRFY\n");
 }
 
-void noop()
+void noop(int fd)
 {
     printf("NOOP\n");
+    send_formatted(fd, "250 OK\r\n", NULL);
 }
 
 void quit(int fd)
 {
     printf("QUIT\n");
-    char arg0[MAX_LINE_LENGTH] = "221 2.0.0 ";
-    // char *arg1 = name.nodename;
-    char *arg1 = " closing connection\r\n";
-    strcat(arg0, arg1);
-    send_all(fd, arg0, strlen(arg0));
+    send_formatted(fd, "221 OK\r\n", NULL);
+}
+
+void initRes(int fd)
+{
+    printf("HELLO THERE\n");
+    char *tempDomain = "smtp.cs.ubc.ca";
+    send_formatted(fd, "220 %s ESMTP Sendmail\r\n", tempDomain);
+}
+
+void errCmd(int fd)
+{
+    printf("INVALID\n");
+    send_formatted(fd, "503 bad sequence of commands\r\n", NULL);
 }
 
 void handle_client(int fd)
@@ -139,11 +140,11 @@ void handle_client(int fd)
     uname(&my_uname);
 
     /* TO BE COMPLETED BY THE STUDENT */
+    initRes(fd);
     nb_read_line(nb, recvbuf);
     char *parts[MAX_LINE_LENGTH + 1];
     split(recvbuf, parts);
     char *command = parts[0];
-    printf("init message: %s\n", command);
     while (strcasecmp(command, "QUIT") != 0)
     {
         if (strcasecmp(command, "HELO") == 0)
@@ -155,19 +156,21 @@ void handle_client(int fd)
         }
 
         else if (strcasecmp(command, "EHLO") == 0)
-            ehlo();
+            ehlo(fd);
         else if (strcasecmp(command, "MAIL") == 0)
             mail(fd, parts[1]);
         else if (strcasecmp(command, "RCPT") == 0)
             rcpt(fd, parts[1]);
         else if (strcasecmp(command, "DATA") == 0)
-            data();
+            data(fd);
         else if (strcasecmp(command, "RSET") == 0)
-            rset();
+            rset(fd);
         else if (strcasecmp(command, "VRFY") == 0)
-            vrfy();
+            vrfy(fd);
         else if (strcasecmp(command, "NOOP") == 0)
-            noop();
+            noop(fd);
+        else
+            errCmd(fd);
         nb_read_line(nb, recvbuf);
         split(recvbuf, parts);
         command = parts[0];
