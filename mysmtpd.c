@@ -33,12 +33,12 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void helo(int fd, char *givenName)
+void helo(int fd, char *domainName, char *givenName)
 {
     printf("HELO\n");
     char *tempServer = "smtp.cs.ubc.ca";
-    char *tempDomain = "pender.students.cs.ubc.ca";
-    send_formatted(fd, "250 %s Hello %s [198.162.33.17], pleased to meet you\r\n", tempServer, tempDomain);
+    
+    send_formatted(fd, "250 %s Hello %s , pleased to meet you\r\n", domainName, givenName);
 }
 
 void heloErr(int fd)
@@ -47,10 +47,10 @@ void heloErr(int fd)
     send_formatted(fd, "501 5.0.0 HELO requires domain address\r\n", NULL);
 }
 
-void ehlo(int fd)
+void ehlo(int fd, char *domainName, char *givenName)
 {
     printf("EHLO\n");
-    send_formatted(fd, "250 2.0.0 OK\r\n", NULL);
+    helo(fd, domainName, givenName);
 }
 
 void mail(int fd, char *arg)
@@ -183,7 +183,7 @@ void handle_client(int fd)
 
     struct utsname my_uname;
     uname(&my_uname);
-
+    char* domainName = my_uname.nodename;
     /* TO BE COMPLETED BY THE STUDENT */
     initRes(fd);
     while (1)
@@ -202,11 +202,14 @@ void handle_client(int fd)
             if (parts[1] == NULL)
                 heloErr(fd);
             else
-                helo(fd, parts[1]);
+                helo(fd, domainName, parts[1]);
         }
 
         else if (strcasecmp(command, "EHLO") == 0)
-            ehlo(fd);
+            if (parts[1] == NULL)
+                heloErr(fd);
+            else
+                ehlo(fd, domainName, parts[1]);
         else if (strcasecmp(command, "MAIL") == 0)
             mail(fd, parts[1]);
         else if (strcasecmp(command, "RCPT") == 0)
