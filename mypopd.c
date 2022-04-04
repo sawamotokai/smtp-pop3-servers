@@ -54,7 +54,7 @@ void user(int fd, char *parts[], int argCount)
         send_formatted(fd, "-ERR no mailbox for %s here\r\n", parts[1]);
 }
 
-void pass(int fd, char *password)
+void pass(int fd, char *args[])
 {
     printf("PASS\n");
     send_formatted(fd, "+OK maildrop has x messages\r\n");
@@ -150,7 +150,7 @@ void handle_client(int fd)
         if (strcasecmp(command, "USER") == 0)
             user(fd, parts, argCount);
         else if (strcasecmp(command, "PASS") == 0)
-            pass(fd, parts[1]);
+            pass(fd, parts);
         else if (strcasecmp(command, "STAT") == 0)
             stat(fd, parts);
         else if (strcasecmp(command, "LIST") == 0)
