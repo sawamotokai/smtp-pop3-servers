@@ -14,9 +14,9 @@ static void handle_client(int fd);
 struct serverState
 {
     int authenticated;
-    int locked;
+    int awaitingPass;
     mail_list_t emails;
-} state = {0, 0, NULL};
+} state = {0, 0, 0, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -32,32 +32,47 @@ int main(int argc, char *argv[])
 
 void user(int fd, char *parts[], int argCount)
 {
-    printf("USER\n");
     if (argCount != 2)
     {
         send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
+        state.awaitingPass = 0;
         return;
     }
-    if (state.locked)
+    if (state.authenticated)
     {
-        send_formatted(fd, "-ERR maildrop is locked\r\n");
+        send_response(fd, "-ERR Maildrop already locked\r\n");
+        state.awaitingPass = 0;
         return;
     }
     if (is_valid_user(parts[1], NULL))
     {
-        state.authenticated = 1;
-        state.locked = 1;
-        state.emails = load_user_mail(parts[1]);
-        send_formatted(fd, "+OK User accepted\r\n");
+        send_formatted(fd, "+OK enter pass\r\n");
+        state.awaitingPass = 1;
     }
     else
+    {
         send_formatted(fd, "-ERR no mailbox for %s here\r\n", parts[1]);
+        state.awaitingPass = 0;
+    }
 }
 
 void pass(int fd, char *args[])
 {
     printf("PASS\n");
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    if (state.authenticated)
+    {
+        send_formatted(fd, "-ERR Maildrop already locked\r\n");
+        return;
+    }
+    if (state.awaitingPass)
+    {
+        // TODO: Check if password is valid
+        send_formatted(fd, "+OK maildrop has x messages\r\n");
+    }
+    else
+    {
+        send_formatted(fd, "-ERR USER command is required immediately before.\r\n");
+    }
 }
 
 void stat(int fd, char *args[])
