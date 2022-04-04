@@ -33,9 +33,7 @@ int main(int argc, char *argv[])
 
 void helo(int fd, char *domainName, char *givenName)
 {
-    printf("HELO\n");
-    char *tempServer = "smtp.cs.ubc.ca";
-    
+    printf("HELO\n");    
     send_formatted(fd, "250 %s Hello %s , pleased to meet you\r\n", domainName, givenName);
 }
 
@@ -100,9 +98,28 @@ void rset(int fd)
     printf("RSET\n");
 }
 
-void vrfy(int fd)
+void vrfy(int fd, char *args[])
 {
     printf("VRFY\n");
+    if(args[1] == NULL){
+        send_formatted(fd, "550 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
+        return;
+    }
+    if (args[2] != NULL)
+    {
+        send_formatted(fd, "501 Requested action not taken: mailbox unavailable (e.g., mailbox not found, no access, or command rejected for policy reasons)\r\n", NULL);
+        return;
+    }
+    
+    
+
+    int isValid = is_valid_user(args[1], args[2]);
+    if (isValid == 0)
+    {
+        send_formatted(fd, "550 Requested action not taken: mailbox unavailable. %s does not exist, or password is incorrect\r\n", args[1]);
+    }else{
+        send_formatted(fd, "250 Requested mail action okay, completed\r\n", NULL);
+    }
 }
 
 void noop(int fd)
@@ -174,7 +191,7 @@ void handle_client(int fd)
         else if (strcasecmp(command, "RSET") == 0)
             rset(fd);
         else if (strcasecmp(command, "VRFY") == 0)
-            vrfy(fd);
+            vrfy(fd, parts);
         else if (strcasecmp(command, "NOOP") == 0)
             noop(fd);
         else if (strcasecmp(command, "QUIT") == 0)
