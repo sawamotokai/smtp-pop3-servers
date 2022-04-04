@@ -16,7 +16,7 @@ struct serverState
     int authenticated;
     int awaitingPass;
     mail_list_t emails;
-} state = {0, 0, 0, NULL};
+} state = {0, 0, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -40,7 +40,7 @@ void user(int fd, char *parts[], int argCount)
     }
     if (state.authenticated)
     {
-        send_response(fd, "-ERR Maildrop already locked\r\n");
+        send_formatted(fd, "-ERR Maildrop already locked\r\n");
         state.awaitingPass = 0;
         return;
     }
