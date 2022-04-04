@@ -21,9 +21,16 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void user(int fd, char *userName) {
+void user(int fd, char *parts[], int argCount) {
     printf("USER\n");
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    if (argCount != 2) {
+        send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
+        return;
+    }
+    if(is_valid_user(parts[1], NULL))
+        send_formatted(fd, "+OK User accepted\r\n");
+    else    
+        send_formatted(fd, "-ERR no mailbox for %s here\r\n", parts[1]);
 }
 
 void pass(int fd, char *password) {
@@ -80,7 +87,7 @@ void rset(int fd) {
 void quit(int fd) {
     printf("QUIT\n");
     send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
-}
+} 
 
 void initRes(int fd) {
     printf("INIT RES\n");
@@ -105,12 +112,12 @@ void handle_client(int fd) {
             break;
         }
         char *parts[MAX_LINE_LENGTH + 1];
-        split(recvbuf, parts);
+        int argCount = split(recvbuf, parts);
         char *command = parts[0];
 
         
         if (strcasecmp(command, "USER") == 0)
-            user(fd, parts[1]);
+            user(fd, parts, argCount);
         else if (strcasecmp(command, "PASS") == 0)
             pass(fd, parts[1]);
         else if (strcasecmp(command, "STAT") == 0)
