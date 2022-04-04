@@ -15,6 +15,7 @@ struct serverState
 {
     int authenticated;
     int awaitingPass;
+    char *username;
     mail_list_t emails;
 } state = {0, 0, 0, NULL};
 
@@ -48,6 +49,7 @@ void user(int fd, char *parts[], int argCount)
     {
         send_formatted(fd, "+OK enter pass\r\n");
         state.awaitingPass = 1;
+        state.user = parts[1];
     }
     else
     {
