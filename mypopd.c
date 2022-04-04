@@ -31,9 +31,15 @@ void pass(int fd, char *password) {
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
-void stat(int fd) {
+void stat(int fd, char *args[]) {
     printf("STAT\n");
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    if (args[1] != NULL)
+    {
+        send_formatted(fd, "-ERR invalid arguments\r\n");
+        return;
+    }
+    
+    send_formatted(fd, "+OK 2 320");
 }
 
 void list(int fd) {
@@ -41,13 +47,23 @@ void list(int fd) {
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
-void retr(int fd) {
+void retr(int fd, char *args[]) {
     printf("RETR\n");
+    if (args[1] == NULL)
+    {
+        send_formatted(fd, "-ERR invalid arguments\r\n");
+        return;
+    }
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
-void dele(int fd) {
+void dele(int fd, char *args[]) {
     printf("DELE\n");
+    if (args[1] == NULL)
+    {
+        send_formatted(fd, "-ERR invalid arguments\r\n");
+        return;
+    }
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
@@ -98,13 +114,13 @@ void handle_client(int fd) {
         else if (strcasecmp(command, "PASS") == 0)
             pass(fd, parts[1]);
         else if (strcasecmp(command, "STAT") == 0)
-            stat(fd);
+            stat(fd, parts);
         else if (strcasecmp(command, "LIST") == 0)
             list(fd);
         else if (strcasecmp(command, "RETR") == 0)
-            retr(fd);
+            retr(fd, parts);
         else if (strcasecmp(command, "DELE") == 0)
-            dele(fd);
+            dele(fd, parts);
         else if (strcasecmp(command, "NOOP") == 0)
             noop(fd);
         else if (strcasecmp(command, "RSET") == 0)
