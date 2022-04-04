@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
 void helo(int fd, char *givenName)
 {
-    printf("HELO\r\n");
+    printf("HELO\n");
     char *tempServer = "smtp.cs.ubc.ca";
     char *tempDomain = "pender.students.cs.ubc.ca";
     send_formatted(fd, "250 %s Hello %s [198.162.33.17], pleased to meet you\r\n", tempServer, tempDomain);
@@ -55,7 +55,7 @@ void mail(int fd, char *arg)
 {
     if (state.sender != NULL)
     {
-        send_formatted(fd, "503 5.5.0 Sender already specified\n");
+        send_formatted(fd, "503 5.5.0 Sender already specified\r\n");
         return;
     }
     char *start = strchr(arg, '<') + 1;
@@ -64,14 +64,14 @@ void mail(int fd, char *arg)
     strncpy(sender, start, end - start);
     sender[end - start] = '\0';
     state.sender = sender;
-    send_formatted(fd, "250 2.1.0 <%s>... Sender ok\n", sender);
+    send_formatted(fd, "250 2.1.0 <%s>... Sender ok\r\n", sender);
 }
 
 void rcpt(int fd, char *arg)
 {
     if (!state.sender)
     {
-        send_formatted(fd, "503 5.0.0 Need MAIL before RCPT\n");
+        send_formatted(fd, "503 5.0.0 Need MAIL before RCPT\r\n");
         return;
     }
     char *start = strchr(arg, '<') + 1;
@@ -82,12 +82,12 @@ void rcpt(int fd, char *arg)
     // validate recipient
     if (!is_valid_user(recipient, NULL))
     {
-        send_formatted(fd, "550 5.1.1 <%s>... User unknown\n", recipient);
+        send_formatted(fd, "550 5.1.1 <%s>... User unknown\r\n", recipient);
         return;
     }
     // add recipient to state
     add_user_to_list(&state.recipients, recipient);
-    send_formatted(fd, "250 2.1.5 <%s>... Recipient ok\n", recipient);
+    send_formatted(fd, "250 2.1.5 <%s>... Recipient ok\r\n", recipient);
 }
 
 void data(int fd)
@@ -108,19 +108,19 @@ void vrfy(int fd)
 void noop(int fd)
 {
     printf("NOOP\n");
-    send_formatted(fd, "250 OK\r\n", NULL);
+    send_formatted(fd, "250 OK\r\n");
 }
 
 void quit(int fd)
 {
     printf("QUIT\n");
-    send_formatted(fd, "221 OK\r\n", NULL);
+    send_formatted(fd, "221 OK\r\n");
 }
 
 void initRes(int fd)
 {
-    printf("HELLO THERE\n");
-    char *tempDomain = "smtp.cs.ubc.ca";
+    printf("HELLO THERE\r\n");
+    char *tempDomain = "smtp.cs.ubc.ca\0";
     send_formatted(fd, "220 %s ESMTP Sendmail\r\n", tempDomain);
 }
 
@@ -141,12 +141,17 @@ void handle_client(int fd)
 
     /* TO BE COMPLETED BY THE STUDENT */
     initRes(fd);
-    nb_read_line(nb, recvbuf);
-    char *parts[MAX_LINE_LENGTH + 1];
-    split(recvbuf, parts);
-    char *command = parts[0];
-    while (strcasecmp(command, "QUIT") != 0)
+    while (1)
     {
+        int res = nb_read_line(nb, recvbuf);
+        if (res <= 0)
+        {
+            break;
+        }
+        char *parts[MAX_LINE_LENGTH + 1];
+        split(recvbuf, parts);
+        char *command = parts[0];
+
         if (strcasecmp(command, "HELO") == 0)
         {
             if (parts[1] == NULL)
@@ -169,12 +174,13 @@ void handle_client(int fd)
             vrfy(fd);
         else if (strcasecmp(command, "NOOP") == 0)
             noop(fd);
+        else if (strcasecmp(command, "QUIT") == 0)
+        {
+            quit(fd);
+            break;
+        }
         else
             errCmd(fd);
-        nb_read_line(nb, recvbuf);
-        split(recvbuf, parts);
-        command = parts[0];
     }
-    quit(fd);
     nb_destroy(nb);
 }
