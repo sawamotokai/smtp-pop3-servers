@@ -296,7 +296,8 @@ void handle_client(int fd)
             errCmd(fd);
 
         // TODO: handle other commands that are supported but not to be implented
-
+        // TODO: support multi processing
+        // TODO: case where mail data is only a dot -> abort data?
     }
     nb_destroy(nb);
 }
