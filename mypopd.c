@@ -66,11 +66,21 @@ void quit(int fd) {
     send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
 }
 
+void initRes(int fd) {
+    printf("INIT RES\n");
+    send_formatted(fd, "+OK dewey POP3 server signing in\r\n");
+}
+
+void errRes(int fd) {
+    printf("ERR RES\n");
+    send_formatted(fd, "-ERR dewey POP3 server signing in\r\n");
+}
+
 void handle_client(int fd) {
     char recvbuf[MAX_LINE_LENGTH + 1];
     net_buffer_t nb = nb_create(fd, MAX_LINE_LENGTH);
     /* TO BE COMPLETED BY THE STUDENT */
-
+    initRes(fd);
     while (1)
     {
         int res = nb_read_line(nb, recvbuf);
@@ -105,7 +115,9 @@ void handle_client(int fd) {
             break;
         }
         else
-            errCmd(fd);
+        {
+            errRes(fd);
+        }
     }
 
     nb_destroy(nb);
