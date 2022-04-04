@@ -51,7 +51,6 @@ void ehlo(int fd, char *domainName, char *givenName)
     helo(fd, domainName, givenName);
     if (state.sender)
     {
-        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
@@ -62,8 +61,14 @@ void ehlo(int fd, char *domainName, char *givenName)
     state.usedEHLO = 1;
 }
 
-void mail(int fd, char *arg)
+void mail(int fd, char *args[], int cnt)
 {
+    if (cnt == 1)
+    {
+        send_formatted(fd, "501 Invalid arg\r\n");
+        return;
+    }
+    char *arg = args[1];
     if (!state.usedEHLO)
     {
         send_formatted(fd, "503 5.5.1 Error: send EHLO first\r\n");
@@ -88,8 +93,14 @@ void mail(int fd, char *arg)
     send_formatted(fd, "250 2.1.0 <%s>... Sender ok\r\n", sender);
 }
 
-void rcpt(int fd, char *arg)
+void rcpt(int fd, char *args[], int cnt)
 {
+    if (cnt == 1)
+    {
+        send_formatted(fd, "501 Invalid arg\r\n");
+        return;
+    }
+    char *arg = args[1];
     if (!state.sender)
     {
         send_formatted(fd, "503 5.0.0 Need MAIL before RCPT\r\n");
@@ -140,7 +151,13 @@ void data(int fd, net_buffer_t nb)
             send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
             break;
         }
-        write(file, line, n);
+        char *ptr = line;
+        if (line[0] == '.')
+        {
+            ptr++;
+            n--;
+        }
+        write(file, ptr, n);
     }
     close(file);
     save_user_mail(filename, state.recipients);
@@ -151,7 +168,6 @@ void rset(int fd)
 {
     if (state.sender)
     {
-        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
@@ -231,7 +247,7 @@ void handle_client(int fd)
             break;
         }
         char *parts[MAX_LINE_LENGTH + 1];
-        split(recvbuf, parts);
+        int cnt = split(recvbuf, parts);
         char *command = parts[0];
 
         if (strcasecmp(command, "HELO") == 0)
@@ -247,9 +263,9 @@ void handle_client(int fd)
             else
                 ehlo(fd, domainName, parts[1]);
         else if (strcasecmp(command, "MAIL") == 0)
-            mail(fd, parts[1]);
+            mail(fd, parts, cnt);
         else if (strcasecmp(command, "RCPT") == 0)
-            rcpt(fd, parts[1]);
+            rcpt(fd, parts, cnt);
         else if (strcasecmp(command, "DATA") == 0)
             data(fd, nb);
         else if (strcasecmp(command, "RSET") == 0)
