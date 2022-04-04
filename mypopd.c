@@ -23,47 +23,47 @@ int main(int argc, char *argv[]) {
 
 void user(int fd, char *userName) {
     printf("USER\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void pass(int fd, char *password) {
     printf("PASS\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void stat(int fd) {
     printf("STAT\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void list(int fd) {
     printf("LIST\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void retr(int fd) {
     printf("RETR\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void dele(int fd) {
     printf("DELE\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void noop(int fd) {
     printf("NOOP\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void rset(int fd) {
     printf("RSET\n");
-    send_formatted(fd, "250 2.0.0 Ok\r\n");
+    send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void quit(int fd) {
     printf("QUIT\n");
-    send_formatted(fd, "221 2.0.0 Bye\r\n");
+    send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
 }
 
 void handle_client(int fd) {
