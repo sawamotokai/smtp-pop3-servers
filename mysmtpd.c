@@ -69,6 +69,12 @@ void mail(int fd, char *args[], int cnt)
         return;
     }
     char *arg = args[1];
+    char *expectedPrefix = "FROM:<";
+    if (strncasecmp(expectedPrefix, arg, strlen(expectedPrefix)) != 0)
+    {
+        send_formatted(fd, "501 Invalid arg\r\n");
+        return;
+    }
     if (!state.usedEHLO)
     {
         send_formatted(fd, "503 5.5.1 Error: send EHLO first\r\n");
@@ -106,6 +112,13 @@ void rcpt(int fd, char *args[], int cnt)
         send_formatted(fd, "503 5.0.0 Need MAIL before RCPT\r\n");
         return;
     }
+    char *expectedPrefix = "TO:<";
+    if (strncasecmp(expectedPrefix, arg, strlen(expectedPrefix)) != 0)
+    {
+        send_formatted(fd, "501 Invalid arg\r\n");
+        return;
+    }
+
     char *start = strchr(arg, '<') + 1;
     char *end = strchr(arg, '>');
     if (!(start && end))
