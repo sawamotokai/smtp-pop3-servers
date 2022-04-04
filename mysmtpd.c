@@ -7,15 +7,17 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 #define MAX_LINE_LENGTH 1024
 
 static void handle_client(int fd);
 struct emailState
 {
+    int usedEHLO;
     char *sender;
     user_list_t recipients;
-} state = {NULL, NULL};
+} state = {0, NULL, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -53,6 +55,11 @@ void ehlo(int fd)
 
 void mail(int fd, char *arg)
 {
+    // if (!state.usedEHLO)
+    // {
+    //     send_formatted(fd, "503 5.5.1 Error: send HELO/EHLO first\r\n");
+    //     return;
+    // }
     if (state.sender != NULL)
     {
         send_formatted(fd, "503 5.5.0 Sender already specified\r\n");
@@ -100,9 +107,37 @@ void rcpt(int fd, char *arg)
     send_formatted(fd, "250 2.1.5 <%s>... Recipient ok\r\n", recipient);
 }
 
-void data(int fd)
+void data(int fd, net_buffer_t nb)
 {
-    printf("DATA\n");
+    if (!state.sender || !state.recipients)
+    {
+        send_formatted(fd, "503 5.0.0 Need Sender/RCPT before DATA\r\n");
+        return;
+    }
+    send_formatted(fd, "354 Enter mail, end with \".\" on a line by itself\r\n");
+    char *filename = "temp.txt";
+    int file = open(filename, O_WRONLY | O_CREAT, 0644);
+    while (1)
+    {
+        char line[MAX_LINE_LENGTH];
+        int n = nb_read_line(nb, line);
+        printf("%s", line);
+        if (n <= 0)
+        {
+            // send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
+            // break;
+            break;
+        }
+        if (strcmp(line, ".\n") == 0)
+        {
+            send_formatted(fd, "250 2.0.0 Message accepted for delivery\r\n");
+            break;
+        }
+        write(file, line, n);
+    }
+    close(file);
+    save_user_mail(filename, state.recipients);
+    remove(filename);
 }
 
 void rset(int fd)
@@ -177,7 +212,7 @@ void handle_client(int fd)
         else if (strcasecmp(command, "RCPT") == 0)
             rcpt(fd, parts[1]);
         else if (strcasecmp(command, "DATA") == 0)
-            data(fd);
+            data(fd, nb);
         else if (strcasecmp(command, "RSET") == 0)
             rset(fd);
         else if (strcasecmp(command, "VRFY") == 0)
