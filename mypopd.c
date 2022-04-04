@@ -17,7 +17,7 @@ struct serverState
     int awaitingPass;
     char *username;
     mail_list_t emails;
-} state = {0, 0, 0, NULL};
+} state = {0, 0, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -41,7 +41,7 @@ void user(int fd, char *parts[], int argCount)
     }
     if (state.authenticated)
     {
-        send_response(fd, "-ERR Maildrop already locked\r\n");
+        send_formatted(fd, "-ERR Maildrop already locked\r\n");
         state.awaitingPass = 0;
         return;
     }
@@ -58,7 +58,7 @@ void user(int fd, char *parts[], int argCount)
     }
 }
 
-void pass(int fd, char *password)
+void pass(int fd, char *args[])
 {
     printf("PASS\n");
     if (state.authenticated)
@@ -167,7 +167,7 @@ void handle_client(int fd)
         if (strcasecmp(command, "USER") == 0)
             user(fd, parts, argCount);
         else if (strcasecmp(command, "PASS") == 0)
-            pass(fd, parts[1]);
+            pass(fd, parts);
         else if (strcasecmp(command, "STAT") == 0)
             stat(fd, parts);
         else if (strcasecmp(command, "LIST") == 0)

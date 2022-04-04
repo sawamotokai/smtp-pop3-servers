@@ -238,7 +238,13 @@ void initRes(int fd)
 void errCmd(int fd)
 {
     printf("INVALID\n");
-    send_formatted(fd, "503 bad sequence of commands\r\n");
+    send_formatted(fd, "500 Command not recognized\r\n");
+}
+
+void unsupportedCmd(int fd, char* cmd)
+{
+    printf("UNSUPPORTED\n");
+    send_formatted(fd, "502 %s command not implemented\r\n", cmd);
 }
 
 void handle_client(int fd)
@@ -287,6 +293,10 @@ void handle_client(int fd)
             vrfy(fd, parts);
         else if (strcasecmp(command, "NOOP") == 0)
             noop(fd);
+        else if (strcasecmp(command, "HELP") == 0)
+            unsupportedCmd(fd, command);
+        else if (strcasecmp(command, "EXPN") == 0)
+            unsupportedCmd(fd, command);
         else if (strcasecmp(command, "QUIT") == 0)
         {
             quit(fd);
