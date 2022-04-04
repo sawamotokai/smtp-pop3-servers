@@ -36,8 +36,6 @@ int main(int argc, char *argv[])
 void helo(int fd, char *domainName, char *givenName)
 {
     printf("HELO\n");
-    char *tempServer = "smtp.cs.ubc.ca";
-    
     send_formatted(fd, "250 %s Hello %s , pleased to meet you\r\n", domainName, givenName);
 }
 
@@ -51,15 +49,16 @@ void ehlo(int fd, char *domainName, char *givenName)
 {
     printf("EHLO\n");
     helo(fd, domainName, givenName);
+    state = {1, NULL, NULL};
 }
 
 void mail(int fd, char *arg)
 {
-    // if (!state.usedEHLO)
-    // {
-    //     send_formatted(fd, "503 5.5.1 Error: send HELO/EHLO first\r\n");
-    //     return;
-    // }
+    if (!state.usedEHLO)
+    {
+        send_formatted(fd, "503 5.5.1 Error: send EHLO first\r\n");
+        return;
+    }
     if (state.sender != NULL)
     {
         send_formatted(fd, "503 5.5.0 Sender already specified\r\n");
@@ -142,7 +141,17 @@ void data(int fd, net_buffer_t nb)
 
 void rset(int fd)
 {
-    printf("RSET\n");
+    if (state.sender)
+    {
+        free(state.sender);
+        state.sender = NULL;
+    }
+    if (state.recipients)
+    {
+        free_user_list(state.recipients);
+        state.recipients = NULL;
+    }
+    send_formatted(fd, "250 2.0.0 Reset state\r\n");
 }
 
 void vrfy(int fd)
@@ -183,7 +192,7 @@ void handle_client(int fd)
 
     struct utsname my_uname;
     uname(&my_uname);
-    char* domainName = my_uname.nodename;
+    char *domainName = my_uname.nodename;
     /* TO BE COMPLETED BY THE STUDENT */
     initRes(fd);
     while (1)
@@ -204,7 +213,6 @@ void handle_client(int fd)
             else
                 helo(fd, domainName, parts[1]);
         }
-
         else if (strcasecmp(command, "EHLO") == 0)
             if (parts[1] == NULL)
                 heloErr(fd);
