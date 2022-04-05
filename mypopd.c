@@ -58,11 +58,13 @@ void user(int fd, char *parts[], int argCount)
         state.awaitingPass = 1;
         state.username = malloc(strlen(parts[1]) + 1);
         strcpy(state.username, parts[1]);
+        return;
     }
     else
     {
         send_formatted(fd, "-ERR no mailbox for %s here\r\n", parts[1]);
         state.awaitingPass = 0;
+        return;
     }
 }
 
@@ -74,11 +76,11 @@ void pass(int fd, char *argv[], int argc)
         state.awaitingPass = 0;
         return;
     }
-    // if (state.authenticated)
-    // {
-    //     send_formatted(fd, "-ERR Maildrop already locked\r\n");
-    //     return;
-    // }
+    if (state.authenticated)
+    {
+        send_formatted(fd, "-ERR Maildrop already locked\r\n");
+        return;
+    }
     if (state.awaitingPass)
     {
         if (is_valid_user(state.username, argv[1]))
@@ -102,7 +104,7 @@ void pass(int fd, char *argv[], int argc)
     }
 }
 
-void stat(int fd, char *args[])
+void myStat(int fd, char *args[])
 {
     if (!state.authenticated)
     {
@@ -151,6 +153,7 @@ void list(int fd, char *argv[], int argc)
             return;
         }
         send_formatted(fd, "+OK %d %zu octets\r\n", idx, get_mail_item_size(mail));
+        return;
     }
     else
     {
@@ -220,6 +223,11 @@ void dele(int fd, char *argv[], int argc)
     if (idx <= 0)
     {
         send_formatted(fd, "-ERR invalid args\r\n");
+        return;
+    }
+    if (state.emails == NULL)
+    {
+        send_formatted(fd, "-stateerror why is email null??\r\n");
         return;
     }
     mail_item_t mail = get_mail_item(state.emails, idx - 1);
@@ -314,7 +322,7 @@ void handle_client(int fd)
         else if (strncasecmp(recvbuf, "PASS", 4) == 0)
             pass(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "STAT", 4) == 0)
-            stat(fd, parts);
+            myStat(fd, parts);
         else if (strncasecmp(recvbuf, "LIST", 4) == 0)
             list(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "RETR", 4) == 0)
