@@ -67,7 +67,7 @@ void user(int fd, char *parts[], int argCount)
 
 void pass(int fd, char *input)
 {
-    input[strlen(input) - 1] = '\0'; // remove the line break
+    input[strlen(input) - 2] = '\0'; // remove the CRLF
     if (strlen(input) < 6)           // "PASS password" contains at least 6 characters
     {
         send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
@@ -114,8 +114,20 @@ void stat(int fd, char *args[])
 
 void list(int fd)
 {
-    printf("LIST\n");
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    if (!state.authenticated)
+    {
+        send_formatted(fd, "-ERR user not authenticated\r\n");
+        return;
+    }
+    int count = get_mail_count(state.emails, 0);
+    int size = get_mail_list_size(state.emails);
+    send_formatted(fd, "+OK %d messages (%d octets)\r\n", count, size);
+    for (int i = 0; i < count; i++)
+    {
+        mail_item_t mail = get_mail_item(state.emails, i);
+        send_formatted(fd, "%d %zu\r\n", i + 1, get_mail_item_size(mail));
+    }
+    send_formatted(fd, ".\r\n");
 }
 
 void retr(int fd, char *args[])
