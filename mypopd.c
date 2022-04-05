@@ -255,9 +255,15 @@ void quit(int fd)
 {
     printf("QUIT\n");
     if (state.username)
+    {
         free(state.username);
+        state.username = NULL;
+    }
     if (state.emails)
+    {
         destroy_mail_list(state.emails);
+        state.emails = NULL;
+    }
     state.awaitingPass = 0;
     state.authenticated = 0;
     send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
