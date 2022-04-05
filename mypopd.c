@@ -2,6 +2,7 @@
 #include "mailuser.h"
 #include "server.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,11 +14,11 @@ static void handle_client(int fd);
 
 struct serverState
 {
-    int authenticated;
+    int authenticated; // authentication state if 0, else transaction state
     int awaitingPass;
     char *username;
     mail_list_t emails;
-} state = {0, 0, NULL};
+} state = {0, 0, NULL, NULL};
 
 int main(int argc, char *argv[])
 {
@@ -67,15 +68,12 @@ void user(int fd, char *parts[], int argCount)
 
 void pass(int fd, char *argv[], int argc)
 {
-    // input[strlen(input) - 2] = '\0'; // remove the CRLF
-    // if (strlen(input) < 6) // "PASS password" contains at least 6 characters
     if (argc != 2) // norm confirmed that we don't need to handle space in password
     {
         send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
         state.awaitingPass = 0;
         return;
     }
-    // char *password = input + 5; // actual password starts at the 6th character
     if (state.authenticated)
     {
         send_formatted(fd, "-ERR Maildrop already locked\r\n");
@@ -89,15 +87,18 @@ void pass(int fd, char *argv[], int argc)
             state.authenticated = 1;
             int cnt = get_mail_count(state.emails, 0);
             send_formatted(fd, "+OK maildrop has %d messages\r\n", cnt);
+            return;
         }
         else
         {
             send_formatted(fd, "-ERR invalid password\r\n");
+            return;
         }
     }
     else
     {
         send_formatted(fd, "-ERR USER command is required immediately before.\r\n");
+        return;
     }
 }
 
@@ -122,10 +123,10 @@ void list(int fd, char *argv[], int argc)
     }
     if (argc == 1) // list all
     {
-        int count = get_mail_count(state.emails, 1);
-        int actualCount = get_mail_count(state.emails, 0);
-        int size = get_mail_list_size(state.emails);
-        send_formatted(fd, "+OK %d messages (%d octets)\r\n", actualCount, size);
+        unsigned int count = get_mail_count(state.emails, 1);
+        unsigned int actualCount = get_mail_count(state.emails, 0);
+        size_t size = get_mail_list_size(state.emails);
+        send_formatted(fd, "+OK %u messages (%zu octets)\r\n", actualCount, size);
         for (int i = 0; i < count; i++)
         {
             mail_item_t mail = get_mail_item(state.emails, i);
@@ -185,7 +186,7 @@ void retr(int fd, char *argv[], int argc)
     FILE *fptr = get_mail_item_contents(mail);
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
+    size_t read;
     if (fptr == NULL)
     {
         send_formatted(fd, "-ERR no such message\r\n");
@@ -194,7 +195,10 @@ void retr(int fd, char *argv[], int argc)
     send_formatted(fd, "+OK %zu octets\r\n", get_mail_item_size(mail));
     while ((read = getline(&line, &len, fptr)) != -1)
     {
-        send_formatted(fd, "%s", line);
+        if (line[0] == '.')
+            send_formatted(fd, ".%s", line);
+        else
+            send_formatted(fd, "%s", line);
     }
     send_formatted(fd, ".\r\n");
     fclose(fptr);
@@ -230,7 +234,6 @@ void dele(int fd, char *argv[], int argc)
 
 void noop(int fd)
 {
-    printf("NOOP\n");
     if (!state.authenticated)
     {
         send_formatted(fd, "-ERR user not authenticated\r\n");
@@ -241,19 +244,21 @@ void noop(int fd)
 
 void rset(int fd)
 {
-    printf("RSET\n");
     if (!state.authenticated)
     {
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    int cnt = reset_mail_list_deleted_flag(state.emails);
-    send_formatted(fd, "+OK %d messages restored\r\n", cnt);
+    unsigned int cnt = reset_mail_list_deleted_flag(state.emails);
+    send_formatted(fd, "+OK %u messages restored\r\n", cnt);
 }
 
-void quit(int fd)
+void resetState(int doUpdate)
 {
-    printf("QUIT\n");
+    if (!doUpdate && state.emails)
+    {
+        reset_mail_list_deleted_flag(state.emails);
+    }
     if (state.username)
     {
         free(state.username);
@@ -261,23 +266,28 @@ void quit(int fd)
     }
     if (state.emails)
     {
+        assert(state.authenticated);
         destroy_mail_list(state.emails);
         state.emails = NULL;
     }
     state.awaitingPass = 0;
     state.authenticated = 0;
+}
+
+void quit(int fd)
+{
     send_formatted(fd, "+OK dewey POP3 server signing off\r\n");
+    // UPDATE state
+    resetState(1);
 }
 
 void initRes(int fd)
 {
-    printf("INIT RES\n");
     send_formatted(fd, "+OK dewey POP3 server signing in\r\n");
 }
 
 void errRes(int fd)
 {
-    printf("ERR RES\n");
     send_formatted(fd, "-ERR dewey POP3 server signing in\r\n");
 }
 
@@ -292,6 +302,7 @@ void handle_client(int fd)
         int res = nb_read_line(nb, recvbuf);
         if (res <= 0)
         {
+            resetState(0);
             break;
         }
         char *parts[MAX_LINE_LENGTH + 1];
@@ -328,9 +339,5 @@ void handle_client(int fd)
             state.awaitingPass = 0;
         }
     }
-    if (state.username)
-        free(state.username);
-    if (state.emails)
-        destroy_mail_list(state.emails);
     nb_destroy(nb);
 }
