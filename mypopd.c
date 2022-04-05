@@ -322,6 +322,9 @@ void handle_client(int fd)
             state.awaitingPass = 0;
         }
     }
-
+    if (state.username)
+        free(state.username);
+    if (state.emails)
+        destroy_mail_list(state.emails);
     nb_destroy(nb);
 }
