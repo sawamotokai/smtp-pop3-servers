@@ -86,7 +86,7 @@ void pass(int fd, char *input)
         {
             state.emails = load_user_mail(state.username);
             state.authenticated = 1;
-            int cnt = get_mail_list_size(state.emails);
+            int cnt = get_mail_count(state.emails, 0);
             send_formatted(fd, "+OK maildrop has %d messages\r\n", cnt);
         }
         else
@@ -102,14 +102,14 @@ void pass(int fd, char *input)
 
 void stat(int fd, char *args[])
 {
-    printf("STAT\n");
-    if (args[1] != NULL)
+    if (!state.authenticated)
     {
-        send_formatted(fd, "-ERR invalid arguments\r\n");
+        send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-
-    send_formatted(fd, "+OK 2 320");
+    int count = get_mail_count(state.emails, 0);
+    int size = get_mail_list_size(state.emails);
+    send_formatted(fd, "+OK %d %d\r\n", count, size);
 }
 
 void list(int fd)
