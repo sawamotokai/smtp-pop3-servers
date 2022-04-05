@@ -51,6 +51,7 @@ void ehlo(int fd, char *domainName, char *givenName)
     helo(fd, domainName, givenName);
     if (state.sender)
     {
+        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
@@ -95,7 +96,8 @@ void mail(int fd, char *args[], int cnt)
     char sender[end - start + 1];
     strncpy(sender, start, end - start);
     sender[end - start] = '\0';
-    state.sender = sender;
+    state.sender = malloc(strlen(sender) + 1);
+    strcpy(state.sender, sender);
     send_formatted(fd, "250 2.1.0 <%s>... Sender ok\r\n", sender);
 }
 
@@ -181,6 +183,7 @@ void rset(int fd)
 {
     if (state.sender)
     {
+        free(state.sender);
         state.sender = NULL;
     }
     if (state.recipients)
@@ -241,7 +244,7 @@ void errCmd(int fd)
     send_formatted(fd, "500 Command not recognized\r\n");
 }
 
-void unsupportedCmd(int fd, char* cmd)
+void unsupportedCmd(int fd, char *cmd)
 {
     printf("UNSUPPORTED\n");
     send_formatted(fd, "502 %s command not implemented\r\n", cmd);
