@@ -108,9 +108,9 @@ void stat(int fd, char *args[])
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    int count = get_mail_count(state.emails, 0);
-    int size = get_mail_list_size(state.emails);
-    send_formatted(fd, "+OK %d %d\r\n", count, size);
+    unsigned int count = get_mail_count(state.emails, 0);
+    size_t size = get_mail_list_size(state.emails);
+    send_formatted(fd, "+OK %u %zu\r\n", count, size);
 }
 
 void list(int fd, char *argv[], int argc)
@@ -122,9 +122,10 @@ void list(int fd, char *argv[], int argc)
     }
     if (argc == 1) // list all
     {
-        int count = get_mail_count(state.emails, 0);
+        int count = get_mail_count(state.emails, 1);
+        int actualCount = get_mail_count(state.emails, 0);
         int size = get_mail_list_size(state.emails);
-        send_formatted(fd, "+OK %d messages (%d octets)\r\n", count, size);
+        send_formatted(fd, "+OK %d messages (%d octets)\r\n", actualCount, size);
         for (int i = 0; i < count; i++)
         {
             mail_item_t mail = get_mail_item(state.emails, i);
@@ -157,36 +158,74 @@ void list(int fd, char *argv[], int argc)
     }
 }
 
-void retr(int fd, char *args[])
+void retr(int fd, char *argv[], int argc)
 {
-    printf("RETR\n");
     if (!state.authenticated)
     {
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    if (args[1] == NULL)
+    if (argc != 2)
     {
-        send_formatted(fd, "-ERR invalid arguments\r\n");
+        send_formatted(fd, "-ERR invalid args\r\n");
         return;
     }
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    int idx = atoi(argv[1]);
+    if (idx == 0)
+    {
+        send_formatted(fd, "-ERR invalid args\r\n");
+        return;
+    }
+    mail_item_t mail = get_mail_item(state.emails, idx - 1);
+    if (mail == NULL)
+    {
+        send_formatted(fd, "-ERR no such message\r\n");
+        return;
+    }
+    FILE *fptr = get_mail_item_contents(mail);
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    if (fptr == NULL)
+    {
+        send_formatted(fd, "-ERR no such message\r\n");
+        return;
+    }
+    send_formatted(fd, "+OK %zu octets\r\n", get_mail_item_size(mail));
+    while ((read = getline(&line, &len, fptr)) != -1)
+    {
+        send_formatted(fd, "%s", line);
+    }
+    send_formatted(fd, ".\r\n");
+    fclose(fptr);
 }
 
-void dele(int fd, char *args[])
+void dele(int fd, char *argv[], int argc)
 {
-    printf("DELE\n");
     if (!state.authenticated)
     {
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    if (args[1] == NULL)
+    if (argc != 2)
     {
-        send_formatted(fd, "-ERR invalid arguments\r\n");
+        send_formatted(fd, "-ERR invalid args\r\n");
         return;
     }
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    int idx = atoi(argv[1]);
+    if (idx == 0)
+    {
+        send_formatted(fd, "-ERR invalid args\r\n");
+        return;
+    }
+    mail_item_t mail = get_mail_item(state.emails, idx - 1);
+    if (mail == NULL)
+    {
+        send_formatted(fd, "-ERR message %d already deleted or does not exist\r\n", idx);
+        return;
+    }
+    mark_mail_item_deleted(mail);
+    send_formatted(fd, "+OK message %d deleted\r\n", idx);
 }
 
 void noop(int fd)
@@ -208,7 +247,8 @@ void rset(int fd)
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    send_formatted(fd, "+OK maildrop has x messages\r\n");
+    int cnt = reset_mail_list_deleted_flag(state.emails);
+    send_formatted(fd, "+OK %d messages restored\r\n", cnt);
 }
 
 void quit(int fd)
@@ -261,9 +301,9 @@ void handle_client(int fd)
         else if (strncasecmp(recvbuf, "LIST", 4) == 0)
             list(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "RETR", 4) == 0)
-            retr(fd, parts);
+            retr(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "DELE", 4) == 0)
-            dele(fd, parts);
+            dele(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "NOOP", 4) == 0)
             noop(fd);
         else if (strncasecmp(recvbuf, "RSET", 4) == 0)
