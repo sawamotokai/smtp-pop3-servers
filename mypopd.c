@@ -74,11 +74,11 @@ void pass(int fd, char *argv[], int argc)
         state.awaitingPass = 0;
         return;
     }
-    if (state.authenticated)
-    {
-        send_formatted(fd, "-ERR Maildrop already locked\r\n");
-        return;
-    }
+    // if (state.authenticated)
+    // {
+    //     send_formatted(fd, "-ERR Maildrop already locked\r\n");
+    //     return;
+    // }
     if (state.awaitingPass)
     {
         if (is_valid_user(state.username, argv[1]))
@@ -217,7 +217,7 @@ void dele(int fd, char *argv[], int argc)
         return;
     }
     int idx = atoi(argv[1]);
-    if (idx == 0)
+    if (idx <= 0)
     {
         send_formatted(fd, "-ERR invalid args\r\n");
         return;
