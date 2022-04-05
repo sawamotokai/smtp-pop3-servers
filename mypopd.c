@@ -39,6 +39,12 @@ void user(int fd, char *parts[], int argCount)
         state.awaitingPass = 0;
         return;
     }
+    if (state.awaitingPass)
+    {
+        send_formatted(fd, "-ERR Already awaiting password for a different user\r\n");
+        state.awaitingPass = 0;
+        return;
+    }
     if (state.authenticated)
     {
         send_formatted(fd, "-ERR Maildrop already locked\r\n");
@@ -49,7 +55,8 @@ void user(int fd, char *parts[], int argCount)
     {
         send_formatted(fd, "+OK enter pass\r\n");
         state.awaitingPass = 1;
-        state.user = parts[1];
+        state.username = malloc(strlen(parts[1]) + 1);
+        strcpy(state.username, parts[1]);
     }
     else
     {
@@ -58,9 +65,16 @@ void user(int fd, char *parts[], int argCount)
     }
 }
 
-void pass(int fd, char *args[])
+void pass(int fd, char *input)
 {
-    printf("PASS\n");
+    input[strlen(input) - 1] = '\0'; // remove the line break
+    if (strlen(input) < 6)           // "PASS password" contains at least 6 characters
+    {
+        send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
+        state.awaitingPass = 0;
+        return;
+    }
+    char *password = input + 5; // actual password starts at the 6th character
     if (state.authenticated)
     {
         send_formatted(fd, "-ERR Maildrop already locked\r\n");
@@ -68,8 +82,17 @@ void pass(int fd, char *args[])
     }
     if (state.awaitingPass)
     {
-        // TODO: Check if password is valid
-        send_formatted(fd, "+OK maildrop has x messages\r\n");
+        if (is_valid_user(state.username, password))
+        {
+            state.emails = load_user_mail(state.username);
+            state.authenticated = 1;
+            int cnt = get_mail_list_size(state.emails);
+            send_formatted(fd, "+OK maildrop has %d messages\r\n", cnt);
+        }
+        else
+        {
+            send_formatted(fd, "-ERR invalid password\r\n");
+        }
     }
     else
     {
@@ -161,26 +184,26 @@ void handle_client(int fd)
             break;
         }
         char *parts[MAX_LINE_LENGTH + 1];
-        int argCount = split(recvbuf, parts);
-        char *command = parts[0];
-
-        if (strcasecmp(command, "USER") == 0)
+        char copy[MAX_LINE_LENGTH + 1];
+        strcpy(copy, recvbuf);
+        int argCount = split(copy, parts);
+        if (strncasecmp(recvbuf, "USER", 4) == 0)
             user(fd, parts, argCount);
-        else if (strcasecmp(command, "PASS") == 0)
-            pass(fd, parts);
-        else if (strcasecmp(command, "STAT") == 0)
+        else if (strncasecmp(recvbuf, "PASS", 4) == 0)
+            pass(fd, recvbuf);
+        else if (strncasecmp(recvbuf, "STAT", 4) == 0)
             stat(fd, parts);
-        else if (strcasecmp(command, "LIST") == 0)
+        else if (strncasecmp(recvbuf, "LIST", 4) == 0)
             list(fd);
-        else if (strcasecmp(command, "RETR") == 0)
+        else if (strncasecmp(recvbuf, "RETR", 4) == 0)
             retr(fd, parts);
-        else if (strcasecmp(command, "DELE") == 0)
+        else if (strncasecmp(recvbuf, "DELE", 4) == 0)
             dele(fd, parts);
-        else if (strcasecmp(command, "NOOP") == 0)
+        else if (strncasecmp(recvbuf, "NOOP", 4) == 0)
             noop(fd);
-        else if (strcasecmp(command, "RSET") == 0)
+        else if (strncasecmp(recvbuf, "RSET", 4) == 0)
             rset(fd);
-        else if (strcasecmp(command, "QUIT") == 0)
+        else if (strncasecmp(recvbuf, "QUIT", 4) == 0)
         {
             quit(fd);
             break;
@@ -188,6 +211,10 @@ void handle_client(int fd)
         else
         {
             errRes(fd);
+        }
+        if (strncasecmp(recvbuf, "USER", 4) != 0)
+        {
+            state.awaitingPass = 0;
         }
     }
 
