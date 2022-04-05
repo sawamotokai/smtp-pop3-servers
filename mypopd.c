@@ -160,6 +160,11 @@ void list(int fd, char *argv[], int argc)
 void retr(int fd, char *args[])
 {
     printf("RETR\n");
+    if (!state.authenticated)
+    {
+        send_formatted(fd, "-ERR user not authenticated\r\n");
+        return;
+    }
     if (args[1] == NULL)
     {
         send_formatted(fd, "-ERR invalid arguments\r\n");
@@ -171,6 +176,11 @@ void retr(int fd, char *args[])
 void dele(int fd, char *args[])
 {
     printf("DELE\n");
+    if (!state.authenticated)
+    {
+        send_formatted(fd, "-ERR user not authenticated\r\n");
+        return;
+    }
     if (args[1] == NULL)
     {
         send_formatted(fd, "-ERR invalid arguments\r\n");
@@ -182,12 +192,22 @@ void dele(int fd, char *args[])
 void noop(int fd)
 {
     printf("NOOP\n");
+    if (!state.authenticated)
+    {
+        send_formatted(fd, "-ERR user not authenticated\r\n");
+        return;
+    }
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
 void rset(int fd)
 {
     printf("RSET\n");
+    if (!state.authenticated)
+    {
+        send_formatted(fd, "-ERR user not authenticated\r\n");
+        return;
+    }
     send_formatted(fd, "+OK maildrop has x messages\r\n");
 }
 
