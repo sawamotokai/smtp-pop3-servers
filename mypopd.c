@@ -65,16 +65,17 @@ void user(int fd, char *parts[], int argCount)
     }
 }
 
-void pass(int fd, char *input)
+void pass(int fd, char *argv[], int argc)
 {
-    input[strlen(input) - 2] = '\0'; // remove the CRLF
-    if (strlen(input) < 6)           // "PASS password" contains at least 6 characters
+    // input[strlen(input) - 2] = '\0'; // remove the CRLF
+    // if (strlen(input) < 6) // "PASS password" contains at least 6 characters
+    if (argc != 2) // norm confirmed that we don't need to handle space in password
     {
         send_formatted(fd, "-ERR Syntax error in parameters or arguments\r\n");
         state.awaitingPass = 0;
         return;
     }
-    char *password = input + 5; // actual password starts at the 6th character
+    // char *password = input + 5; // actual password starts at the 6th character
     if (state.authenticated)
     {
         send_formatted(fd, "-ERR Maildrop already locked\r\n");
@@ -82,7 +83,7 @@ void pass(int fd, char *input)
     }
     if (state.awaitingPass)
     {
-        if (is_valid_user(state.username, password))
+        if (is_valid_user(state.username, argv[1]))
         {
             state.emails = load_user_mail(state.username);
             state.authenticated = 1;
@@ -112,22 +113,46 @@ void stat(int fd, char *args[])
     send_formatted(fd, "+OK %d %d\r\n", count, size);
 }
 
-void list(int fd)
+void list(int fd, char *argv[], int argc)
 {
     if (!state.authenticated)
     {
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    int count = get_mail_count(state.emails, 0);
-    int size = get_mail_list_size(state.emails);
-    send_formatted(fd, "+OK %d messages (%d octets)\r\n", count, size);
-    for (int i = 0; i < count; i++)
+    if (argc == 1)
     {
-        mail_item_t mail = get_mail_item(state.emails, i);
-        send_formatted(fd, "%d %zu\r\n", i + 1, get_mail_item_size(mail));
+        int count = get_mail_count(state.emails, 0);
+        int size = get_mail_list_size(state.emails);
+        send_formatted(fd, "+OK %d messages (%d octets)\r\n", count, size);
+        for (int i = 0; i < count; i++)
+        {
+            mail_item_t mail = get_mail_item(state.emails, i);
+            send_formatted(fd, "%d %zu\r\n", i + 1, get_mail_item_size(mail));
+        }
+        send_formatted(fd, ".\r\n");
     }
-    send_formatted(fd, ".\r\n");
+    else if (argc == 2)
+    {
+        int idx = atoi(argv[1]);
+        if (idx == 0)
+        {
+            send_formatted(fd, "-ERR invalid message number\r\n");
+            return;
+        }
+        mail_item_t mail = get_mail_item(state.emails, idx - 1);
+        if (mail == NULL)
+        {
+            send_formatted(fd, "-ERR no such message\r\n");
+            return;
+        }
+        send_formatted(fd, "+OK %d %zu octets\r\n", idx, get_mail_item_size(mail));
+    }
+    else
+    {
+        send_formatted(fd, "-ERR too many args\r\n");
+        return;
+    }
 }
 
 void retr(int fd, char *args[])
@@ -208,11 +233,11 @@ void handle_client(int fd)
         if (strncasecmp(recvbuf, "USER", 4) == 0)
             user(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "PASS", 4) == 0)
-            pass(fd, recvbuf);
+            pass(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "STAT", 4) == 0)
             stat(fd, parts);
         else if (strncasecmp(recvbuf, "LIST", 4) == 0)
-            list(fd);
+            list(fd, parts, argCount);
         else if (strncasecmp(recvbuf, "RETR", 4) == 0)
             retr(fd, parts);
         else if (strncasecmp(recvbuf, "DELE", 4) == 0)
