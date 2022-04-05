@@ -120,7 +120,7 @@ void list(int fd, char *argv[], int argc)
         send_formatted(fd, "-ERR user not authenticated\r\n");
         return;
     }
-    if (argc == 1)
+    if (argc == 1) // list all
     {
         int count = get_mail_count(state.emails, 0);
         int size = get_mail_list_size(state.emails);
@@ -128,11 +128,13 @@ void list(int fd, char *argv[], int argc)
         for (int i = 0; i < count; i++)
         {
             mail_item_t mail = get_mail_item(state.emails, i);
+            if (mail == NULL)
+                continue;
             send_formatted(fd, "%d %zu\r\n", i + 1, get_mail_item_size(mail));
         }
         send_formatted(fd, ".\r\n");
     }
-    else if (argc == 2)
+    else if (argc == 2) // list one
     {
         int idx = atoi(argv[1]);
         if (idx == 0)
